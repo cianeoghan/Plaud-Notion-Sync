@@ -58,56 +58,87 @@ async function getPlaudRecordings() {
     console.log('Navigating to Plaud login...');
     await page.goto('https://web.plaud.ai/login', { waitUntil: 'networkidle2' });
     
-    // Wait for login form
-    await page.waitForSelector('input[type="email"], input[type="text"]', { timeout: 10000 });
+    // Take a screenshot to debug
+    await page.screenshot({ path: '/tmp/plaud-login.png' });
+    console.log('Login page loaded, taking screenshot...');
     
-    // Enter credentials
-    console.log('Entering credentials...');
-    await page.type('input[type="email"], input[type="text"]', PLAUD_EMAIL);
-    await page.type('input[type="password"]', PLAUD_PASSWORD);
+    // Wait for login form - try multiple selectors
+    console.log('Waiting for email input...');
+    await page.waitForSelector('input[type="email"], input[type="text"], input[name="email"], input[placeholder*="email" i]', { timeout: 10000 });
     
-    // Click login button
-    await page.click('button[type="submit"]');
+    // Enter email
+    console.log('Entering email...');
+    const emailInput = await page.$('input[type="email"], input[type="text"], input[name="email"]');
+    await emailInput.type(PLAUD_EMAIL);
+    
+    // Enter password
+    console.log('Entering password...');
+    const passwordInput = await page.$('input[type="password"], input[name="password"]');
+    await passwordInput.type(PLAUD_PASSWORD);
+    
+    // Try to find and click submit button with multiple selectors
+    console.log('Looking for submit button...');
+    const submitButton = await page.$('button[type="submit"]') || 
+                         await page.$('button:has-text("Sign in")') ||
+                         await page.$('button:has-text("Log in")') ||
+                         await page.$('button:has-text("Login")') ||
+                         await page.$('[type="submit"]') ||
+                         await page.$('button.login-button') ||
+                         await page.$('form button');
+    
+    if (!submitButton) {
+      // If we can't find the button, try pressing Enter on the password field
+      console.log('Submit button not found, pressing Enter...');
+      await passwordInput.press('Enter');
+    } else {
+      console.log('Clicking submit button...');
+      await submitButton.click();
+    }
     
     // Wait for navigation after login
     console.log('Waiting for login...');
     await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
     
+    // Take screenshot after login
+    await page.screenshot({ path: '/tmp/plaud-after-login.png' });
+    console.log('Login successful, waiting for recordings...');
+    
     // Wait for recordings to load
-    console.log('Waiting for recordings page...');
     await page.waitForTimeout(5000);
     
     // Extract recordings data
     console.log('Extracting recordings...');
     const recordings = await page.evaluate(() => {
-      const recordingElements = document.querySelectorAll('[data-recording], .recording-item, .file-item');
+      const recordingElements = document.querySelectorAll('[data-recording], .recording-item, .file-item, .note-item, [class*="recording"], [class*="file"]');
       const results = [];
       
       recordingElements.forEach((element) => {
         try {
           // Try to extract title
-          const titleElement = element.querySelector('.title, .recording-title, h3, h4, .name');
+          const titleElement = element.querySelector('.title, .recording-title, h3, h4, .name, [class*="title"]');
           const title = titleElement ? titleElement.innerText.trim() : 'Untitled Recording';
           
           // Try to extract date
-          const dateElement = element.querySelector('.date, .time, .timestamp, time');
+          const dateElement = element.querySelector('.date, .time, .timestamp, time, [class*="date"], [class*="time"]');
           const dateText = dateElement ? dateElement.innerText.trim() : new Date().toISOString();
           
           // Try to extract summary/transcription
-          const summaryElement = element.querySelector('.summary, .description, .content, .transcript');
+          const summaryElement = element.querySelector('.summary, .description, .content, .transcript, [class*="summary"], [class*="description"]');
           const summary = summaryElement ? summaryElement.innerText.trim() : '';
           
-          // Generate a unique ID (you may need to adjust this based on actual HTML structure)
+          // Generate a unique ID
           const id = element.getAttribute('data-id') || 
                      element.getAttribute('id') || 
                      `${title}-${dateText}`.replace(/[^a-zA-Z0-9]/g, '-');
           
-          results.push({
-            id,
-            title,
-            date: dateText,
-            summary: summary || 'No summary available'
-          });
+          if (title && title !== 'Untitled Recording') {
+            results.push({
+              id,
+              title,
+              date: dateText,
+              summary: summary || 'No summary available'
+            });
+          }
         } catch (err) {
           console.error('Error extracting recording:', err);
         }
@@ -126,7 +157,6 @@ async function getPlaudRecordings() {
     await browser.close();
   }
 }
-
 /**
  * Create a Notion page for a recording
  */
