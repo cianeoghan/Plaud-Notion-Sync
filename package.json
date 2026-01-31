@@ -1,0 +1,19 @@
+{
+  "name": "plaud-notion-sync",
+  "version": "1.0.0",
+  "description": "Sync Plaud.ai recordings to Notion database",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "sync": "node src/index.js",
+    "test": "node test-local.js"
+  },
+  "keywords": ["plaud", "notion", "sync", "automation"],
+  "author": "Cian",
+  "license": "MIT",
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "puppeteer": "^21.11.0",
+    "dotenv": "^16.3.1"
+  }
+}
