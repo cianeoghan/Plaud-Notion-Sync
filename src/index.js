@@ -76,24 +76,34 @@ async function getPlaudRecordings() {
     const passwordInput = await page.$('input[type="password"], input[name="password"]');
     await passwordInput.type(PLAUD_PASSWORD);
     
-    // Try to find and click submit button with multiple selectors
-    console.log('Looking for submit button...');
-    const submitButton = await page.$('button[type="submit"]') || 
-                         await page.$('button:has-text("Sign in")') ||
-                         await page.$('button:has-text("Log in")') ||
-                         await page.$('button:has-text("Login")') ||
-                         await page.$('[type="submit"]') ||
-                         await page.$('button.login-button') ||
-                         await page.$('form button');
-    
-    if (!submitButton) {
-      // If we can't find the button, try pressing Enter on the password field
-      console.log('Submit button not found, pressing Enter...');
-      await passwordInput.press('Enter');
-    } else {
-      console.log('Clicking submit button...');
-      await submitButton.click();
+  // Try to find and click submit button
+console.log('Looking for submit button...');
+let submitButton = await page.$('button[type="submit"]');
+
+if (!submitButton) {
+  // Try to find button by text content using XPath
+  console.log('Trying to find button by text...');
+  const buttons = await page.$$('button');
+  for (const button of buttons) {
+    const text = await page.evaluate(el => el.textContent, button);
+    if (text && (text.toLowerCase().includes('sign in') || 
+                 text.toLowerCase().includes('log in') || 
+                 text.toLowerCase().includes('login') ||
+                 text.toLowerCase().includes('submit'))) {
+      submitButton = button;
+      break;
     }
+  }
+}
+
+if (!submitButton) {
+  // If we can't find the button, try pressing Enter on the password field
+  console.log('Submit button not found, pressing Enter...');
+  await passwordInput.press('Enter');
+} else {
+  console.log('Clicking submit button...');
+  await submitButton.click();
+}
     
     // Wait for navigation after login
     console.log('Waiting for login...');
