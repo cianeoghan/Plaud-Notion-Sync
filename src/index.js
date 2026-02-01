@@ -69,14 +69,7 @@ async function getPlaudRecordings() {
     const emailInput = await page.$('input[type="email"], input[type="text"], input[name="email"]');
     await emailInput.type(PLAUD_EMAIL);
     
-    // Enter password
-    console.log('Entering password...');
-    const passwordInput = await page.$('input[type="password"], input[name="password"]');
-    await passwordInput.type(PLAUD_PASSWORD);
-    
-    // Try to find and click submit button
-    console.log('Looking for submit button...');
-    let submitButton = await page.$('button[type="submit"]');
+
 
     if (!submitButton) {
       // Try to find button by text content
